@@ -4,26 +4,26 @@ A collaborative Python Streamlit application for tracking and analyzing sleep pa
 
 ## Team Members & Responsibilities
 
-| Member  | Folder       | Responsibility                                      |
-|---------|--------------|-----------------------------------------------------|
-| Siyuan  | `frontend/`  | Streamlit UI components, pages, and user interface  |
-| Hakim   | `database/`  | SQLite schema, queries, and data models             |
-| Yeraly  | `analysis/`  | Sleep debt calculations, pattern detection, reports |
-| Yibo    | `system/`    | Application logic, startup, module integration      |
+| Member  | Folder              | Responsibility                                      |
+|---------|---------------------|-----------------------------------------------------|
+| Siyuan  | `frontend_siyuan/`  | Streamlit UI components, pages, and user interface  |
+| Hakim   | `database_hakim/`   | SQLite schema, queries, and data models             |
+| Yeraly  | `analysis_yeraly/`  | Sleep debt calculations, pattern detection, reports |
+| Yibo    | `system_yibo/`      | Application logic, startup, module integration      |
 
 ## Project Structure
 
 ```
 sleep-tracker/
-    app.py              # Main entry point (run with: streamlit run app.py)
-    requirements.txt    # Python dependencies
-    README.md           # This file
-    .gitignore          # Git ignore rules
+    app.py                  # Main entry point (run with: streamlit run app.py)
+    requirements.txt        # Python dependencies
+    README.md               # This file
+    .gitignore              # Git ignore rules
 
-    frontend/           # Siyuan - UI components
-    database/           # Hakim - Database operations
-    analysis/           # Yeraly - Analysis algorithms
-    system/             # Yibo - Integration logic
+    frontend_siyuan/        # Siyuan - UI components
+    database_hakim/         # Hakim - Database operations
+    analysis_yeraly/        # Yeraly - Analysis algorithms
+    system_yibo/            # Yibo - Integration logic
 ```
 
 ## Getting Started
@@ -49,10 +49,10 @@ sleep-tracker/
 Each folder is a Python package. You can import modules like this:
 
 ```python
-from frontend.pages import some_function
-from database.queries import some_function
-from analysis.algorithms import some_function
-from system.integration import some_function
+from frontend_siyuan.pages import some_function
+from database_hakim.queries import some_function
+from analysis_yeraly.algorithms import some_function
+from system_yibo.integration import some_function
 ```
 
 ## Guidelines to Avoid Merge Conflicts
