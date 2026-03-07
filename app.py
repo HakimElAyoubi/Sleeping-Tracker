@@ -6,6 +6,8 @@ Run with: streamlit run app.py
 """
 
 import streamlit as st
+from frontend_siyuan.pages import render
+render()
 
 # Page configuration
 st.set_page_config(
@@ -22,3 +24,4 @@ st.write("Welcome to the Sleep Tracker application!")
 # from database_hakim import ...
 # from analysis_yeraly import ...
 # from system_yibo import ...
+
