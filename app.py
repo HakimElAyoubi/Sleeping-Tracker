@@ -6,22 +6,24 @@ Run with: streamlit run app.py
 """
 
 import streamlit as st
-from frontend_siyuan.pages import render
-render()
 
-# Page configuration
+# Import backend initialization
+from database_hakim import init_database
+
+# Import frontend entry point
+from frontend_siyuan.pages import render
+
+
+# Page configuration (must be first Streamlit command)
 st.set_page_config(
     page_title="Sleep Tracker",
     page_icon="😴",
     layout="wide"
 )
 
-st.title("Sleep Tracker")
-st.write("Welcome to the Sleep Tracker application!")
+# Initialize database
+init_database()
 
-# TODO: Import and integrate modules from team folders
-# from frontend_siyuan import ...
-# from database_hakim import ...
-# from analysis_yeraly import ...
-# from system_yibo import ...
+# Launch the frontend application
+render()
 
