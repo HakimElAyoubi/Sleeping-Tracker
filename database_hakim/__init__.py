@@ -35,16 +35,25 @@ Available Functions:
     - delete_sleep_record(id)   : Delete record by ID
     - get_record_count()        : Get total record count
     - date_exists(date)         : Check if date has a record
+    - insert_habit(record)      : Add a habit record
+    - get_habits_by_date_range(start, end) : Get habits in date range
+    - get_habit_by_sleep_record_id(id) : Get habit for a sleep record
+    - get_all_habits()          : Get all habit records
+    - insert_report(record)     : Save a weekly report
+    - get_latest_report()       : Get most recent report
+    - get_all_reports()         : Get all reports
 
-Data Model:
+Data Models:
     - SleepRecord: Dataclass representing a sleep entry
+    - HabitRecord: Dataclass representing daily habits
+    - ReportRecord: Dataclass representing a weekly report
 """
 
 # Connection and initialization
 from .connection import init_database, get_connection
 
 # Data models
-from .models import SleepRecord
+from .models import SleepRecord, HabitRecord, ReportRecord
 
 # CRUD operations
 from .queries import (
@@ -58,4 +67,11 @@ from .queries import (
     delete_sleep_record,
     get_record_count,
     date_exists,
+    insert_habit,
+    get_habits_by_date_range,
+    get_habit_by_sleep_record_id,
+    get_all_habits,
+    insert_report,
+    get_latest_report,
+    get_all_reports,
 )
