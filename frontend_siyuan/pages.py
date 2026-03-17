@@ -525,7 +525,7 @@ def _page_report():
             selected_action = st.radio("Select action:", ["Export", "Delete"], key="report_action")
             selected_report_idx = st.selectbox("Select report:", 
                                                range(len(saved_reports[:5])), 
-                                               format_func=lambda i: f"{saved_reports[i].report_date} (Week {saved_reports[i].week_start} to {saved_reports[i].week_end})",
+                                               format_func=lambda i: f"ID {saved_reports[i].id} - {saved_reports[i].report_date} (Week {saved_reports[i].week_start} to {saved_reports[i].week_end})",
                                                key="report_select")
         
         selected_report = saved_reports[selected_report_idx]
