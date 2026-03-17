@@ -68,26 +68,6 @@ def get_all_records() -> List[SleepRecord]:
     return [SleepRecord.from_row(row) for row in rows]
 
 
-def get_record_by_id(record_id: int) -> Optional[SleepRecord]:
-    """
-    Get a single sleep record by ID.
-
-    Args:
-        record_id: The database ID of the record
-
-    Returns:
-        SleepRecord if found, None otherwise
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT * FROM sleep_records WHERE id = ?", (record_id,))
-    row = cursor.fetchone()
-    conn.close()
-
-    return SleepRecord.from_row(row) if row else None
-
-
 def get_record_by_date(date: str) -> Optional[SleepRecord]:
     """
     Get a sleep record for a specific date.
@@ -106,32 +86,6 @@ def get_record_by_date(date: str) -> Optional[SleepRecord]:
     conn.close()
 
     return SleepRecord.from_row(row) if row else None
-
-
-def get_records_in_range(start_date: str, end_date: str) -> List[SleepRecord]:
-    """
-    Get all sleep records within a date range.
-
-    Args:
-        start_date: Start date (YYYY-MM-DD), inclusive
-        end_date: End date (YYYY-MM-DD), inclusive
-
-    Returns:
-        List of SleepRecord objects
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT * FROM sleep_records
-        WHERE date >= ? AND date <= ?
-        ORDER BY date DESC
-    """, (start_date, end_date))
-
-    rows = cursor.fetchall()
-    conn.close()
-
-    return [SleepRecord.from_row(row) for row in rows]
 
 
 def get_recent_records(limit: int = 7) -> List[SleepRecord]:
@@ -272,23 +226,6 @@ def insert_habit(record: HabitRecord) -> int:
     conn.commit()
     conn.close()
     return habit_id
-
-
-def get_habits_by_date_range(start_date: str, end_date: str) -> List[HabitRecord]:
-    """Get all habit records for sleep records within a date range."""
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT h.* FROM habits h
-        JOIN sleep_records sr ON h.sleep_record_id = sr.id
-        WHERE sr.date >= ? AND sr.date <= ?
-        ORDER BY sr.date DESC
-    """, (start_date, end_date))
-
-    rows = cursor.fetchall()
-    conn.close()
-    return [HabitRecord.from_row(row) for row in rows]
 
 
 def get_habit_by_sleep_record_id(record_id: int) -> Optional[HabitRecord]:

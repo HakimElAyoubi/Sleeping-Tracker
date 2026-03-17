@@ -10,7 +10,6 @@ Usage:
 
 import streamlit as st
 import json
-import os
 import csv
 import io
 import pandas as pd
@@ -22,14 +21,11 @@ from database_hakim import (
     add_sleep_record,
     get_all_records,
     get_recent_records,
-    get_record_by_date,
     get_record_count,
     date_exists,
     insert_habit,
     get_all_habits,
-    get_habit_by_sleep_record_id,
     insert_report,
-    get_latest_report,
     get_all_reports,
     delete_report,
     delete_sleep_record,
@@ -43,8 +39,6 @@ from analysis_yeraly import (
     calculate_duration,
     calculate_sleep_debt,
     get_streak,
-    analyze_habit_correlations,
-    generate_advice,
     generate_weekly_summary,
 )
 
