@@ -1,17 +1,17 @@
 """
 Database Queries
 ================
-CRUD operations for sleep records.
+CRUD operations for sleep records, habits, and reports.
 Other modules should use these functions to interact with the database.
 """
 
 from typing import List, Optional
 from .connection import get_connection
-from .models import SleepRecord
+from .models import SleepRecord, HabitRecord, ReportRecord
 
 
 # ============================================================================
-# CREATE
+# SLEEP RECORDS - CREATE
 # ============================================================================
 
 def add_sleep_record(record: SleepRecord) -> int:
@@ -28,15 +28,16 @@ def add_sleep_record(record: SleepRecord) -> int:
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO sleep_records (date, bedtime, wake_time, duration_hours, quality_rating, notes)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO sleep_records (date, bedtime, wake_time, duration_hours, quality_rating, notes, mood)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (
         record.date,
         record.bedtime,
         record.wake_time,
         record.duration_hours,
         record.quality_rating,
-        record.notes
+        record.notes,
+        record.mood,
     ))
 
     record_id = cursor.lastrowid
@@ -47,7 +48,7 @@ def add_sleep_record(record: SleepRecord) -> int:
 
 
 # ============================================================================
-# READ
+# SLEEP RECORDS - READ
 # ============================================================================
 
 def get_all_records() -> List[SleepRecord]:
@@ -159,7 +160,7 @@ def get_recent_records(limit: int = 7) -> List[SleepRecord]:
 
 
 # ============================================================================
-# UPDATE
+# SLEEP RECORDS - UPDATE
 # ============================================================================
 
 def update_sleep_record(record: SleepRecord) -> bool:
@@ -181,7 +182,7 @@ def update_sleep_record(record: SleepRecord) -> bool:
     cursor.execute("""
         UPDATE sleep_records
         SET date = ?, bedtime = ?, wake_time = ?, duration_hours = ?,
-            quality_rating = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+            quality_rating = ?, notes = ?, mood = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     """, (
         record.date,
@@ -190,6 +191,7 @@ def update_sleep_record(record: SleepRecord) -> bool:
         record.duration_hours,
         record.quality_rating,
         record.notes,
+        record.mood,
         record.id
     ))
 
@@ -201,7 +203,7 @@ def update_sleep_record(record: SleepRecord) -> bool:
 
 
 # ============================================================================
-# DELETE
+# SLEEP RECORDS - DELETE
 # ============================================================================
 
 def delete_sleep_record(record_id: int) -> bool:
@@ -227,7 +229,7 @@ def delete_sleep_record(record_id: int) -> bool:
 
 
 # ============================================================================
-# UTILITIES
+# SLEEP RECORDS - UTILITIES
 # ============================================================================
 
 def get_record_count() -> int:
@@ -245,3 +247,141 @@ def get_record_count() -> int:
 def date_exists(date: str) -> bool:
     """Check if a record exists for the given date."""
     return get_record_by_date(date) is not None
+
+
+# ============================================================================
+# HABITS - CRUD
+# ============================================================================
+
+def insert_habit(record: HabitRecord) -> int:
+    """Insert a habit record linked to a sleep record. Returns the new ID."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO habits (sleep_record_id, took_coffee, exercised, used_screen)
+        VALUES (?, ?, ?, ?)
+    """, (
+        record.sleep_record_id,
+        int(record.took_coffee),
+        int(record.exercised),
+        int(record.used_screen),
+    ))
+
+    habit_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return habit_id
+
+
+def get_habits_by_date_range(start_date: str, end_date: str) -> List[HabitRecord]:
+    """Get all habit records for sleep records within a date range."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT h.* FROM habits h
+        JOIN sleep_records sr ON h.sleep_record_id = sr.id
+        WHERE sr.date >= ? AND sr.date <= ?
+        ORDER BY sr.date DESC
+    """, (start_date, end_date))
+
+    rows = cursor.fetchall()
+    conn.close()
+    return [HabitRecord.from_row(row) for row in rows]
+
+
+def get_habit_by_sleep_record_id(record_id: int) -> Optional[HabitRecord]:
+    """Get the habit record for a specific sleep record."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM habits WHERE sleep_record_id = ?", (record_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return HabitRecord.from_row(row) if row else None
+
+
+def get_all_habits() -> List[HabitRecord]:
+    """Get all habit records."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM habits")
+    rows = cursor.fetchall()
+    conn.close()
+    return [HabitRecord.from_row(row) for row in rows]
+
+
+# ============================================================================
+# REPORTS - CRUD
+# ============================================================================
+
+def insert_report(record: ReportRecord) -> int:
+    """Insert a weekly report. Returns the new ID."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO reports (report_date, week_start, week_end, sleep_debt,
+                           average_mood, average_sleep_time, average_quality, insights)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        record.report_date,
+        record.week_start,
+        record.week_end,
+        record.sleep_debt,
+        record.average_mood,
+        record.average_sleep_time,
+        record.average_quality,
+        record.insights,
+    ))
+
+    report_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return report_id
+
+
+def get_latest_report() -> Optional[ReportRecord]:
+    """Get the most recently created report."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM reports ORDER BY created_at DESC LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+    return ReportRecord.from_row(row) if row else None
+
+
+def get_all_reports() -> List[ReportRecord]:
+    """Get all reports ordered by date (newest first)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM reports ORDER BY created_at DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [ReportRecord.from_row(row) for row in rows]
+
+
+def delete_report(report_id: int) -> bool:
+    """
+    Delete a report by ID.
+
+    Args:
+        report_id: The database ID of the report to delete
+
+    Returns:
+        True if report was deleted, False if not found
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("DELETE FROM reports WHERE id = ?", (report_id,))
+
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+
+    return deleted

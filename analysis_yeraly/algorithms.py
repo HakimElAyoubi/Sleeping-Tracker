@@ -1,137 +1,185 @@
 """
-Core Analysis Algorithms
-========================
-Utility functions for sleep calculations.
+Analysis Algorithms - Yeraly
+============================
+Sleep analysis, habit correlations, advice generation, and report summaries.
 """
 
-from datetime import datetime, timedelta
-from typing import Tuple
+from datetime import date, timedelta
 
 
-def calculate_duration(bedtime: str, wake_time: str) -> float:
-    """
-    Calculate sleep duration from bedtime and wake time.
-
-    Args:
-        bedtime: Bedtime in HH:MM format (24-hour)
-        wake_time: Wake time in HH:MM format (24-hour)
-
-    Returns:
-        Duration in hours (float)
-    """
-    bt_parts = bedtime.split(":")
-    wt_parts = wake_time.split(":")
-
-    bt_hour, bt_min = int(bt_parts[0]), int(bt_parts[1])
-    wt_hour, wt_min = int(wt_parts[0]), int(wt_parts[1])
-
-    # Create time deltas
-    bedtime_minutes = bt_hour * 60 + bt_min
-    waketime_minutes = wt_hour * 60 + wt_min
-
-    # Handle overnight sleep (bedtime after midnight handling)
-    if waketime_minutes < bedtime_minutes:
-        # Crossed midnight
-        duration_minutes = (1440 - bedtime_minutes) + waketime_minutes
+def calculate_duration(bedtime_str, wake_time_str):
+    """Calculate sleep duration in hours, handling overnight sleep."""
+    bed_h, bed_m = map(int, bedtime_str.split(":"))
+    wake_h, wake_m = map(int, wake_time_str.split(":"))
+    bed_total = bed_h * 60 + bed_m
+    wake_total = wake_h * 60 + wake_m
+    if wake_total <= bed_total:
+        diff = (24 * 60 - bed_total) + wake_total
     else:
-        duration_minutes = waketime_minutes - bedtime_minutes
+        diff = wake_total - bed_total
+    return round(diff / 60, 2)
 
-    return round(duration_minutes / 60, 2)
+
+def calculate_sleep_debt(records, target_hours=8.0):
+    """Cumulative sleep debt (positive = under-slept)."""
+    return round(sum(target_hours - r.duration_hours for r in records), 1)
 
 
-def calculate_sleep_quality_score(
-    duration_hours: float,
-    quality_rating: int = None,
-    consistency_bonus: bool = False
-) -> float:
+def get_streak(records):
+    """Count consecutive check-in days ending at today."""
+    if not records:
+        return 0
+    dates = sorted({r.date for r in records}, reverse=True)
+    streak = 0
+    expected = date.today()
+    for d in dates:
+        if d == expected.strftime("%Y-%m-%d"):
+            streak += 1
+            expected -= timedelta(days=1)
+        else:
+            break
+    return streak
+
+
+def analyze_habit_correlations(sleep_records, habits):
     """
-    Calculate an overall sleep quality score (0-100).
+    For each habit (coffee, exercise, screen), compare average sleep quality
+    and duration on days WITH the habit vs days WITHOUT.
 
     Args:
-        duration_hours: Hours slept
-        quality_rating: Self-reported quality 1-5 (optional)
-        consistency_bonus: Add bonus for consistent schedule
+        sleep_records: list of SleepRecord objects (must have .id, .quality_rating, .duration_hours)
+        habits: list of HabitRecord objects (must have .sleep_record_id, .took_coffee, .exercised, .used_screen)
 
     Returns:
-        Score from 0 to 100
+        dict mapping habit name to quality_diff, duration_diff, sample_with, sample_without
     """
-    score = 0.0
+    if not sleep_records or not habits:
+        return {}
 
-    # Duration score (0-50 points)
-    # Optimal is 7-9 hours
-    if 7 <= duration_hours <= 9:
-        score += 50
-    elif 6 <= duration_hours < 7:
-        score += 40
-    elif 9 < duration_hours <= 10:
-        score += 40
-    elif 5 <= duration_hours < 6:
-        score += 25
-    elif duration_hours > 10:
-        score += 30
-    else:
-        score += max(0, duration_hours * 5)
+    # Build a map from sleep_record_id -> (quality, duration)
+    record_map = {}
+    for r in sleep_records:
+        if r.id is not None:
+            record_map[r.id] = (r.quality_rating, r.duration_hours)
 
-    # Quality rating score (0-40 points)
-    if quality_rating is not None:
-        score += quality_rating * 8
+    # Build a map from sleep_record_id -> habit
+    habit_map = {}
+    for h in habits:
+        habit_map[h.sleep_record_id] = h
 
-    # Consistency bonus (0-10 points)
-    if consistency_bonus:
-        score += 10
+    result = {}
+    for habit_name, habit_attr in [("coffee", "took_coffee"), ("exercise", "exercised"), ("screen", "used_screen")]:
+        with_quality, with_duration = [], []
+        without_quality, without_duration = [], []
 
-    return min(100, round(score, 1))
+        for rec_id, (quality, duration) in record_map.items():
+            habit = habit_map.get(rec_id)
+            if habit is None:
+                continue
+            if getattr(habit, habit_attr):
+                if quality is not None:
+                    with_quality.append(quality)
+                with_duration.append(duration)
+            else:
+                if quality is not None:
+                    without_quality.append(quality)
+                without_duration.append(duration)
+
+        avg_q_with = sum(with_quality) / len(with_quality) if with_quality else 0
+        avg_q_without = sum(without_quality) / len(without_quality) if without_quality else 0
+        avg_d_with = sum(with_duration) / len(with_duration) if with_duration else 0
+        avg_d_without = sum(without_duration) / len(without_duration) if without_duration else 0
+
+        result[habit_name] = {
+            "quality_diff": round(avg_q_with - avg_q_without, 2) if with_quality and without_quality else 0,
+            "duration_diff": round(avg_d_with - avg_d_without, 2) if with_duration and without_duration else 0,
+            "sample_with": len(with_duration),
+            "sample_without": len(without_duration),
+        }
+
+    return result
 
 
-def categorize_sleep_duration(duration_hours: float) -> str:
+def generate_advice(sleep_records, habits, sleep_debt):
     """
-    Categorize sleep duration.
-
-    Args:
-        duration_hours: Hours slept
-
-    Returns:
-        Category string
+    Return a list of advice strings based on detected patterns.
+    Returns empty list if insufficient data (< 3 records).
     """
-    if duration_hours < 4:
-        return "Very Short"
-    elif duration_hours < 6:
-        return "Short"
-    elif duration_hours < 7:
-        return "Slightly Short"
-    elif duration_hours <= 9:
-        return "Optimal"
-    elif duration_hours <= 10:
-        return "Slightly Long"
-    else:
-        return "Long"
+    if len(sleep_records) < 3:
+        return []
+
+    advice = []
+
+    # Sleep debt advice
+    if sleep_debt > 5:
+        advice.append("You've accumulated significant sleep debt. Try sleeping 30 minutes earlier this week.")
+    elif sleep_debt > 2:
+        advice.append("You have some sleep debt building up. Consider an earlier bedtime tonight.")
+
+    # Habit correlations
+    correlations = analyze_habit_correlations(sleep_records, habits)
+
+    if correlations.get("coffee", {}).get("quality_diff", 0) < -0.3:
+        diff = abs(correlations["coffee"]["quality_diff"])
+        advice.append(f"On days you drink coffee, your sleep quality drops by {diff:.1f}. Consider reducing caffeine.")
+
+    if correlations.get("exercise", {}).get("quality_diff", 0) > 0.3:
+        diff = correlations["exercise"]["quality_diff"]
+        advice.append(f"Great news! Exercise seems to improve your sleep quality by {diff:.1f}.")
+
+    if correlations.get("screen", {}).get("quality_diff", 0) < -0.3:
+        advice.append("Screen time before bed appears to reduce your sleep quality.")
+
+    # Average quality advice
+    qualities = [r.quality_rating for r in sleep_records if r.quality_rating]
+    if qualities:
+        avg_quality = sum(qualities) / len(qualities)
+        if avg_quality < 3:
+            advice.append("Your average sleep quality is below average. Try to maintain a consistent bedtime.")
+
+    # Streak advice
+    streak = get_streak(sleep_records)
+    if streak > 7:
+        advice.append("Amazing streak! Keep up the consistent tracking.")
+
+    return advice
 
 
-def get_sleep_recommendation(average_hours: float, average_quality: float = None) -> str:
+def generate_weekly_summary(sleep_records, habits):
     """
-    Get personalized sleep recommendation.
+    Return a dict with summary statistics for the weekly report.
+    Expects the last 7 days of records.
 
-    Args:
-        average_hours: Average sleep duration
-        average_quality: Average quality rating (1-5)
-
-    Returns:
-        Recommendation string
+    Returns dict with: avg_duration, avg_quality, avg_mood, total_debt,
+    best_day, worst_day, habit_correlations, advice_list.
     """
-    recommendations = []
+    if not sleep_records:
+        return None
 
-    if average_hours < 7:
-        recommendations.append("Try to get at least 7 hours of sleep per night.")
-    elif average_hours > 9:
-        recommendations.append("You may be oversleeping. Aim for 7-9 hours.")
+    durations = [r.duration_hours for r in sleep_records]
+    qualities = [r.quality_rating for r in sleep_records if r.quality_rating]
+    moods = [r.mood for r in sleep_records if r.mood]
 
-    if average_quality is not None:
-        if average_quality < 3:
-            recommendations.append("Your sleep quality is low. Consider improving sleep hygiene.")
-        elif average_quality >= 4:
-            recommendations.append("Great sleep quality! Keep up the good habits.")
+    avg_duration = sum(durations) / len(durations)
+    avg_quality = sum(qualities) / len(qualities) if qualities else 0
+    avg_mood = sum(moods) / len(moods) if moods else 0
 
-    if not recommendations:
-        recommendations.append("Your sleep patterns look healthy. Maintain your current routine.")
+    total_debt = calculate_sleep_debt(sleep_records)
 
-    return " ".join(recommendations)
+    # Best and worst day by duration
+    best_record = max(sleep_records, key=lambda r: r.duration_hours)
+    worst_record = min(sleep_records, key=lambda r: r.duration_hours)
+
+    correlations = analyze_habit_correlations(sleep_records, habits)
+    advice_list = generate_advice(sleep_records, habits, total_debt)
+
+    return {
+        "avg_duration": round(avg_duration, 1),
+        "avg_quality": round(avg_quality, 1),
+        "avg_mood": round(avg_mood, 1),
+        "total_debt": total_debt,
+        "best_day": {"date": best_record.date, "duration": best_record.duration_hours},
+        "worst_day": {"date": worst_record.date, "duration": worst_record.duration_hours},
+        "habit_correlations": correlations,
+        "advice_list": advice_list,
+    }

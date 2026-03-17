@@ -32,6 +32,7 @@ ENV/
 *.swp
 *.swo
 *~
+.claude/
 
 # Database files (keep schema, ignore data)
 *.db
@@ -44,6 +45,9 @@ Thumbs.db
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local settings
+settings.json
 
 # Jupyter
 .ipynb_checkpoints/
