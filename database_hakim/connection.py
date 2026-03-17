@@ -49,15 +49,50 @@ def init_database(db_path: str = None) -> None:
             duration_hours REAL NOT NULL,
             quality_rating INTEGER CHECK(quality_rating >= 1 AND quality_rating <= 5),
             notes TEXT,
+            mood INTEGER CHECK(mood >= 1 AND mood <= 5),
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
+    # Add mood column to existing tables that don't have it yet
+    try:
+        cursor.execute("ALTER TABLE sleep_records ADD COLUMN mood INTEGER CHECK(mood >= 1 AND mood <= 5)")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
     # Create index for faster date lookups
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_sleep_records_date
         ON sleep_records(date)
+    """)
+
+    # Create habits table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS habits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sleep_record_id INTEGER NOT NULL,
+            took_coffee BOOLEAN DEFAULT 0,
+            exercised BOOLEAN DEFAULT 0,
+            used_screen BOOLEAN DEFAULT 0,
+            FOREIGN KEY (sleep_record_id) REFERENCES sleep_records(id)
+        )
+    """)
+
+    # Create reports table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            report_date TEXT NOT NULL,
+            week_start TEXT NOT NULL,
+            week_end TEXT NOT NULL,
+            sleep_debt REAL DEFAULT 0,
+            average_mood REAL,
+            average_sleep_time REAL,
+            average_quality REAL,
+            insights TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
     """)
 
     conn.commit()

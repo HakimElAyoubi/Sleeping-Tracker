@@ -3,12 +3,22 @@ Analysis Module - Yeraly's Workspace
 ====================================
 This folder contains all analysis and algorithm code.
 
-Examples of what belongs here:
-- Sleep debt calculations
-- Pattern detection algorithms
-- Statistical analysis
-- Report generation
-- Data processing functions
-
-Usage: from analysis import <your_module>
+Usage:
+    from analysis_yeraly import (
+        calculate_duration,
+        calculate_sleep_debt,
+        get_streak,
+        analyze_habit_correlations,
+        generate_advice,
+        generate_weekly_summary,
+    )
 """
+
+from .algorithms import (
+    calculate_duration,
+    calculate_sleep_debt,
+    get_streak,
+    analyze_habit_correlations,
+    generate_advice,
+    generate_weekly_summary,
+)
