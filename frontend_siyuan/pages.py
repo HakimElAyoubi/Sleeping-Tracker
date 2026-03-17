@@ -32,6 +32,8 @@ from database_hakim import (
     get_latest_report,
     get_all_reports,
     delete_report,
+    delete_sleep_record,
+    update_sleep_record,
     SleepRecord,
     HabitRecord,
     ReportRecord,
@@ -282,8 +284,116 @@ def _page_dashboard():
             "Duration": f"{r.duration_hours:.1f} hrs",
             "Quality": f"{r.quality_rating}/5" if r.quality_rating else "-",
             "Mood": f"{r.mood}/5" if r.mood else "-",
+            "ID": r.id,
         })
-    st.table(table_data)
+    
+    df_logs = pd.DataFrame(table_data)
+    st.table(df_logs)
+    
+    st.divider()
+    st.write("**Actions:**")
+    
+    # Action buttons for each log
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_action = st.radio("Select action:", ["Edit", "Delete"], key="sleep_log_action")
+        selected_log_idx = st.selectbox("Select log:", 
+                                        range(len(recent)), 
+                                        format_func=lambda i: f"{recent[i].date} ({recent[i].duration_hours:.1f}h)",
+                                        key="sleep_log_select")
+    
+    selected_log = recent[selected_log_idx]
+    
+    # Clear delete confirmation state when switching to Edit action
+    if selected_action == "Edit":
+        st.session_state[f"confirm_delete_log_{selected_log.id}"] = False
+    
+    # Clear edit form when switching to Delete action
+    if selected_action == "Delete":
+        st.session_state[f"edit_log_{selected_log.id}"] = False
+    
+    with col2:
+        st.write("")
+        st.write("")
+        
+        if selected_action == "Edit":
+            if st.button("✏️ Edit Log", key=f"edit_action_{selected_log.id}"):
+                st.session_state[f"edit_log_{selected_log.id}"] = True
+        else:  # Delete action
+            if st.button("🗑️ Delete Log", key=f"delete_log_action_{selected_log.id}"):
+                st.session_state[f"confirm_delete_log_{selected_log.id}"] = True
+    
+    # Show edit form if pending
+    if st.session_state.get(f"edit_log_{selected_log.id}", False):
+        st.divider()
+        st.subheader("Edit Sleep Log")
+        
+        with st.form(f"edit_form_{selected_log.id}"):
+            col_edit1, col_edit2 = st.columns(2)
+            with col_edit1:
+                edit_date = st.date_input("Date", value=datetime.strptime(selected_log.date, "%Y-%m-%d").date(), key=f"edit_date_{selected_log.id}")
+                edit_bedtime = st.time_input("Bedtime", value=datetime.strptime(selected_log.bedtime, "%H:%M").time(), key=f"edit_bedtime_{selected_log.id}")
+                edit_wake_time = st.time_input("Wake Time", value=datetime.strptime(selected_log.wake_time, "%H:%M").time(), key=f"edit_wake_{selected_log.id}")
+            
+            with col_edit2:
+                edit_quality = st.slider("Quality", 1, 5, value=selected_log.quality_rating if selected_log.quality_rating else 3, key=f"edit_quality_{selected_log.id}")
+                edit_mood = st.slider("Mood", 1, 5, value=selected_log.mood if selected_log.mood else 3, key=f"edit_mood_{selected_log.id}")
+                edit_notes = st.text_area("Notes", value=selected_log.notes if selected_log.notes else "", key=f"edit_notes_{selected_log.id}")
+            
+            col_form_btn1, col_form_btn2 = st.columns(2)
+            with col_form_btn1:
+                submit_edit = st.form_submit_button("✓ Save Changes")
+            with col_form_btn2:
+                cancel_edit = st.form_submit_button("✗ Cancel")
+            
+            if submit_edit:
+                try:
+                    bedtime_str = edit_bedtime.strftime("%H:%M")
+                    wake_time_str = edit_wake_time.strftime("%H:%M")
+                    duration = calculate_duration(bedtime_str, wake_time_str)
+                    
+                    updated_record = SleepRecord(
+                        id=selected_log.id,
+                        date=edit_date.strftime("%Y-%m-%d"),
+                        bedtime=bedtime_str,
+                        wake_time=wake_time_str,
+                        duration_hours=duration,
+                        quality_rating=edit_quality,
+                        notes=edit_notes,
+                        mood=edit_mood
+                    )
+                    
+                    if update_sleep_record(updated_record):
+                        st.session_state[f"edit_log_{selected_log.id}"] = False
+                        st.success("Log updated successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Failed to update log.")
+                except Exception as e:
+                    st.error(f"Error updating log: {e}")
+            
+            if cancel_edit:
+                st.session_state[f"edit_log_{selected_log.id}"] = False
+                st.rerun()
+    
+    # Show delete confirmation if pending
+    if st.session_state.get(f"confirm_delete_log_{selected_log.id}", False):
+        st.warning(f"⚠️ Are you sure you want to delete the log for {selected_log.date}?")
+        col_confirm1, col_confirm2 = st.columns(2)
+        with col_confirm1:
+            if st.button("✓ Confirm Delete", key=f"confirm_yes_log_{selected_log.id}"):
+                try:
+                    delete_sleep_record(selected_log.id)
+                    st.session_state[f"confirm_delete_log_{selected_log.id}"] = False
+                    st.session_state[f"edit_log_{selected_log.id}"] = False
+                    st.success("Log deleted successfully!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error deleting log: {e}")
+        with col_confirm2:
+            if st.button("✗ Cancel", key=f"confirm_no_log_{selected_log.id}"):
+                st.session_state[f"confirm_delete_log_{selected_log.id}"] = False
+                st.rerun()
 
 
 # ============================================================================
