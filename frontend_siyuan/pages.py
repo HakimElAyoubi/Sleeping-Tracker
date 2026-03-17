@@ -112,13 +112,22 @@ def _page_checkin():
     st.header("Daily Sleep Check-in")
 
     today = date.today()
-    if date_exists(today.strftime("%Y-%m-%d")):
+    settings = _load_settings()
+    allow_past_day_logging = settings.get("allow_past_day_logging", False)
+
+    if date_exists(today.strftime("%Y-%m-%d")) and not allow_past_day_logging:
         st.success("You've already logged your sleep for today!")
         st.info("Come back tomorrow for your next check-in.")
         return
 
+    if allow_past_day_logging:
+        st.info("Past-day logging is enabled in Settings.")
+
     with st.form("checkin_form"):
-        log_date = st.date_input("Date", value=today, max_value=today)
+        if allow_past_day_logging:
+            log_date = st.date_input("Date", value=today, max_value=today)
+        else:
+            log_date = st.date_input("Date", value=today, min_value=today, max_value=today)
 
         col1, col2 = st.columns(2)
         with col1:
@@ -605,9 +614,17 @@ def _page_settings():
     auto_launch = settings.get("auto_launch", False)
     new_auto_launch = st.checkbox("Enable auto-launch on startup", value=auto_launch)
 
+    # Past-day logging toggle
+    allow_past_day_logging = settings.get("allow_past_day_logging", False)
+    new_allow_past_day_logging = st.toggle(
+        "Allow logging sleep for past days",
+        value=allow_past_day_logging,
+    )
+
     if st.button("Save Settings", type="primary"):
         settings["target_hours"] = new_target
         settings["auto_launch"] = new_auto_launch
+        settings["allow_past_day_logging"] = new_allow_past_day_logging
         _save_settings(settings)
 
         # Handle auto-launch changes
