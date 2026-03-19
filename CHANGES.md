@@ -94,3 +94,11 @@
 
 ### Enhancement: Show notes in sleep log table
 - Added "Notes" column to the Recent Sleep Logs table on the Dashboard page.
+
+### Bug: Database connection leak on exceptions
+**Problem:** All query functions in `queries.py` called `conn.close()` at the end of the function body. If an exception occurred during `cursor.execute()` or any other operation before reaching `conn.close()`, the connection was never closed — leading to connection leaks over time.
+
+**Fix applied:**
+
+1. **`database_hakim/queries.py` — Wrapped all 16 functions with `try/finally`**
+   - Every function that opens a connection now uses `try/finally` to guarantee `conn.close()` runs regardless of whether the operation succeeds or raises an exception.
