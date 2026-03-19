@@ -102,3 +102,14 @@
 
 1. **`database_hakim/queries.py` — Wrapped all 16 functions with `try/finally`**
    - Every function that opens a connection now uses `try/finally` to guarantee `conn.close()` runs regardless of whether the operation succeeds or raises an exception.
+
+### Bug: Selectbox still shows deleted item after deletion
+**Problem:** After deleting a sleep log or report, the selectbox under "Select log" / "Select report" still displayed the deleted item because the in-memory lists (`recent`, `saved_reports`) were stale — they were fetched at the top of the page and not refreshed after the delete.
+
+**Fix applied:**
+
+1. **`frontend_siyuan/pages.py` — Re-fetch data after sleep log delete**
+   - Added `recent[:] = get_recent_records(7)` after `delete_sleep_record()` so the list is up to date before `st.rerun()`.
+
+2. **`frontend_siyuan/pages.py` — Re-fetch data after report delete**
+   - Added `saved_reports[:] = get_all_reports()` after `delete_report()` so the selectbox renders with the updated list.

@@ -411,6 +411,8 @@ def _page_dashboard():
                     stale_keys = [k for k in st.session_state if k.startswith("confirm_delete_log_") or k.startswith("edit_log_")]
                     for k in stale_keys:
                         del st.session_state[k]
+                    # Re-fetch so the selectbox updates immediately
+                    recent[:] = get_recent_records(7)
                     st.success("Log deleted successfully!")
                     st.rerun()
                 except Exception as e:
@@ -603,6 +605,8 @@ def _page_report():
                         stale_keys = [k for k in st.session_state if k.startswith("confirm_delete_")]
                         for k in stale_keys:
                             del st.session_state[k]
+                        # Re-fetch so the selectbox updates immediately
+                        saved_reports[:] = get_all_reports()
                         st.success("Report deleted successfully!")
                         st.rerun()
                     except Exception as e:
