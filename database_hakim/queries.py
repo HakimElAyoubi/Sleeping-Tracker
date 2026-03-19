@@ -173,6 +173,8 @@ def delete_sleep_record(record_id: int) -> bool:
     conn = get_connection()
     cursor = conn.cursor()
 
+    # Delete associated habits first (belt-and-suspenders with ON DELETE CASCADE)
+    cursor.execute("DELETE FROM habits WHERE sleep_record_id = ?", (record_id,))
     cursor.execute("DELETE FROM sleep_records WHERE id = ?", (record_id,))
 
     deleted = cursor.rowcount > 0
@@ -237,6 +239,36 @@ def get_habit_by_sleep_record_id(record_id: int) -> Optional[HabitRecord]:
     row = cursor.fetchone()
     conn.close()
     return HabitRecord.from_row(row) if row else None
+
+
+def update_habit(sleep_record_id: int, record: HabitRecord) -> bool:
+    """Update the habit record linked to a sleep record.
+
+    Args:
+        sleep_record_id: The sleep record this habit belongs to.
+        record: HabitRecord with updated values.
+
+    Returns:
+        True if a row was updated, False otherwise.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE habits
+        SET took_coffee = ?, exercised = ?, used_screen = ?
+        WHERE sleep_record_id = ?
+    """, (
+        int(record.took_coffee),
+        int(record.exercised),
+        int(record.used_screen),
+        sleep_record_id,
+    ))
+
+    updated = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return updated
 
 
 def get_all_habits() -> List[HabitRecord]:

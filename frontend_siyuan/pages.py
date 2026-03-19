@@ -24,6 +24,8 @@ from database_hakim import (
     get_record_count,
     date_exists,
     insert_habit,
+    update_habit,
+    get_habit_by_sleep_record_id,
     get_all_habits,
     insert_report,
     get_all_reports,
@@ -287,6 +289,7 @@ def _page_dashboard():
             "Duration": f"{r.duration_hours:.1f} hrs",
             "Quality": f"{r.quality_rating}/5" if r.quality_rating else "-",
             "Mood": f"{r.mood}/5" if r.mood else "-",
+            "Notes": r.notes if r.notes else "-",
             "ID": r.id,
         })
     
@@ -331,6 +334,9 @@ def _page_dashboard():
         st.divider()
         st.subheader("Edit Sleep Log")
         
+        # Load existing habit data for this sleep record
+        existing_habit = get_habit_by_sleep_record_id(selected_log.id)
+        
         with st.form(f"edit_form_{selected_log.id}"):
             col_edit1, col_edit2 = st.columns(2)
             with col_edit1:
@@ -342,6 +348,11 @@ def _page_dashboard():
                 edit_quality = st.slider("Quality", 1, 5, value=selected_log.quality_rating if selected_log.quality_rating else 3, key=f"edit_quality_{selected_log.id}")
                 edit_mood = st.slider("Mood", 1, 5, value=selected_log.mood if selected_log.mood else 3, key=f"edit_mood_{selected_log.id}")
                 edit_notes = st.text_area("Notes", value=selected_log.notes if selected_log.notes else "", key=f"edit_notes_{selected_log.id}")
+            
+            st.markdown("**Daily Habits**")
+            edit_coffee = st.checkbox("Did you drink coffee/caffeine today?", value=existing_habit.took_coffee if existing_habit else False, key=f"edit_coffee_{selected_log.id}")
+            edit_exercise = st.checkbox("Did you exercise today?", value=existing_habit.exercised if existing_habit else False, key=f"edit_exercise_{selected_log.id}")
+            edit_screen = st.checkbox("Did you use screens within 1 hour of bed?", value=existing_habit.used_screen if existing_habit else False, key=f"edit_screen_{selected_log.id}")
             
             col_form_btn1, col_form_btn2 = st.columns(2)
             with col_form_btn1:
@@ -367,6 +378,14 @@ def _page_dashboard():
                     )
                     
                     if update_sleep_record(updated_record):
+                        # Update linked habit record
+                        updated_habit = HabitRecord(
+                            sleep_record_id=selected_log.id,
+                            took_coffee=edit_coffee,
+                            exercised=edit_exercise,
+                            used_screen=edit_screen,
+                        )
+                        update_habit(selected_log.id, updated_habit)
                         st.session_state[f"edit_log_{selected_log.id}"] = False
                         st.success("Log updated successfully!")
                         st.rerun()
@@ -387,8 +406,10 @@ def _page_dashboard():
             if st.button("✓ Confirm Delete", key=f"confirm_yes_log_{selected_log.id}"):
                 try:
                     delete_sleep_record(selected_log.id)
-                    st.session_state[f"confirm_delete_log_{selected_log.id}"] = False
-                    st.session_state[f"edit_log_{selected_log.id}"] = False
+                    # Clean up all stale session state keys for sleep logs
+                    stale_keys = [k for k in st.session_state if k.startswith("confirm_delete_log_") or k.startswith("edit_log_")]
+                    for k in stale_keys:
+                        del st.session_state[k]
                     st.success("Log deleted successfully!")
                     st.rerun()
                 except Exception as e:
@@ -577,7 +598,10 @@ def _page_report():
                 if st.button("✓ Confirm Delete", key=f"confirm_yes_{selected_report.id}"):
                     try:
                         delete_report(selected_report.id)
-                        st.session_state[f"confirm_delete_{selected_report.id}"] = False
+                        # Clean up all stale session state keys for reports
+                        stale_keys = [k for k in st.session_state if k.startswith("confirm_delete_")]
+                        for k in stale_keys:
+                            del st.session_state[k]
                         st.success("Report deleted successfully!")
                         st.rerun()
                     except Exception as e:

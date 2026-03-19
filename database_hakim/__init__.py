@@ -64,6 +64,8 @@ from .queries import (
     get_record_count,
     date_exists,
     insert_habit,
+    update_habit,
+    get_habit_by_sleep_record_id,
     get_all_habits,
     insert_report,
     get_all_reports,
