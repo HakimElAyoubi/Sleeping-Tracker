@@ -25,6 +25,7 @@ def get_connection(db_path: str = None) -> sqlite3.Connection:
     path = db_path or DEFAULT_DB_PATH
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row  # Enable column access by name
+    conn.execute("PRAGMA foreign_keys = ON")  # Enforce FK constraints
     return conn
 
 
@@ -75,7 +76,7 @@ def init_database(db_path: str = None) -> None:
             took_coffee BOOLEAN DEFAULT 0,
             exercised BOOLEAN DEFAULT 0,
             used_screen BOOLEAN DEFAULT 0,
-            FOREIGN KEY (sleep_record_id) REFERENCES sleep_records(id)
+            FOREIGN KEY (sleep_record_id) REFERENCES sleep_records(id) ON DELETE CASCADE
         )
     """)
 

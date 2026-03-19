@@ -10,7 +10,9 @@ Usage:
 
 import streamlit as st
 import json
-import os
+import csv
+import io
+import pandas as pd
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
@@ -19,15 +21,17 @@ from database_hakim import (
     add_sleep_record,
     get_all_records,
     get_recent_records,
-    get_record_by_date,
     get_record_count,
     date_exists,
     insert_habit,
-    get_all_habits,
+    update_habit,
     get_habit_by_sleep_record_id,
+    get_all_habits,
     insert_report,
-    get_latest_report,
     get_all_reports,
+    delete_report,
+    delete_sleep_record,
+    update_sleep_record,
     SleepRecord,
     HabitRecord,
     ReportRecord,
@@ -37,8 +41,6 @@ from analysis_yeraly import (
     calculate_duration,
     calculate_sleep_debt,
     get_streak,
-    analyze_habit_correlations,
-    generate_advice,
     generate_weekly_summary,
 )
 
@@ -106,13 +108,22 @@ def _page_checkin():
     st.header("Daily Sleep Check-in")
 
     today = date.today()
-    if date_exists(today.strftime("%Y-%m-%d")):
+    settings = _load_settings()
+    allow_past_day_logging = settings.get("allow_past_day_logging", False)
+
+    if date_exists(today.strftime("%Y-%m-%d")) and not allow_past_day_logging:
         st.success("You've already logged your sleep for today!")
         st.info("Come back tomorrow for your next check-in.")
         return
 
+    if allow_past_day_logging:
+        st.info("Past-day logging is enabled in Settings.")
+
     with st.form("checkin_form"):
-        log_date = st.date_input("Date", value=today, max_value=today)
+        if allow_past_day_logging:
+            log_date = st.date_input("Date", value=today, max_value=today)
+        else:
+            log_date = st.date_input("Date", value=today, min_value=today, max_value=today)
 
         col1, col2 = st.columns(2)
         with col1:
@@ -278,8 +289,138 @@ def _page_dashboard():
             "Duration": f"{r.duration_hours:.1f} hrs",
             "Quality": f"{r.quality_rating}/5" if r.quality_rating else "-",
             "Mood": f"{r.mood}/5" if r.mood else "-",
+            "Notes": r.notes if r.notes else "-",
+            "ID": r.id,
+
         })
-    st.table(table_data)
+    
+    df_logs = pd.DataFrame(table_data)
+    st.table(df_logs)
+    
+    st.divider()
+    st.write("**Actions:**")
+    
+    # Action buttons for each log
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_action = st.radio("Select action:", ["Edit", "Delete"], key="sleep_log_action")
+        selected_log_idx = st.selectbox("Select log:", 
+                                        range(len(recent)), 
+                                        format_func=lambda i: f"{recent[i].date} ({recent[i].duration_hours:.1f}h)",
+                                        key="sleep_log_select")
+    
+    selected_log = recent[selected_log_idx]
+    
+    # Clear delete confirmation state when switching to Edit action
+    if selected_action == "Edit":
+        st.session_state[f"confirm_delete_log_{selected_log.id}"] = False
+    
+    # Clear edit form when switching to Delete action
+    if selected_action == "Delete":
+        st.session_state[f"edit_log_{selected_log.id}"] = False
+    
+    with col2:
+        st.write("")
+        st.write("")
+        
+        if selected_action == "Edit":
+            if st.button("✏️ Edit Log", key=f"edit_action_{selected_log.id}"):
+                st.session_state[f"edit_log_{selected_log.id}"] = True
+        else:  # Delete action
+            if st.button("🗑️ Delete Log", key=f"delete_log_action_{selected_log.id}"):
+                st.session_state[f"confirm_delete_log_{selected_log.id}"] = True
+    
+    # Show edit form if pending
+    if st.session_state.get(f"edit_log_{selected_log.id}", False):
+        st.divider()
+        st.subheader("Edit Sleep Log")
+        
+        # Load existing habit data for this sleep record
+        existing_habit = get_habit_by_sleep_record_id(selected_log.id)
+        
+        with st.form(f"edit_form_{selected_log.id}"):
+            col_edit1, col_edit2 = st.columns(2)
+            with col_edit1:
+                edit_date = st.date_input("Date", value=datetime.strptime(selected_log.date, "%Y-%m-%d").date(), key=f"edit_date_{selected_log.id}")
+                edit_bedtime = st.time_input("Bedtime", value=datetime.strptime(selected_log.bedtime, "%H:%M").time(), key=f"edit_bedtime_{selected_log.id}")
+                edit_wake_time = st.time_input("Wake Time", value=datetime.strptime(selected_log.wake_time, "%H:%M").time(), key=f"edit_wake_{selected_log.id}")
+            
+            with col_edit2:
+                edit_quality = st.slider("Quality", 1, 5, value=selected_log.quality_rating if selected_log.quality_rating else 3, key=f"edit_quality_{selected_log.id}")
+                edit_mood = st.slider("Mood", 1, 5, value=selected_log.mood if selected_log.mood else 3, key=f"edit_mood_{selected_log.id}")
+                edit_notes = st.text_area("Notes", value=selected_log.notes if selected_log.notes else "", key=f"edit_notes_{selected_log.id}")
+            
+            st.markdown("**Daily Habits**")
+            edit_coffee = st.checkbox("Did you drink coffee/caffeine today?", value=existing_habit.took_coffee if existing_habit else False, key=f"edit_coffee_{selected_log.id}")
+            edit_exercise = st.checkbox("Did you exercise today?", value=existing_habit.exercised if existing_habit else False, key=f"edit_exercise_{selected_log.id}")
+            edit_screen = st.checkbox("Did you use screens within 1 hour of bed?", value=existing_habit.used_screen if existing_habit else False, key=f"edit_screen_{selected_log.id}")
+            
+            col_form_btn1, col_form_btn2 = st.columns(2)
+            with col_form_btn1:
+                submit_edit = st.form_submit_button("✓ Save Changes")
+            with col_form_btn2:
+                cancel_edit = st.form_submit_button("✗ Cancel")
+            
+            if submit_edit:
+                try:
+                    bedtime_str = edit_bedtime.strftime("%H:%M")
+                    wake_time_str = edit_wake_time.strftime("%H:%M")
+                    duration = calculate_duration(bedtime_str, wake_time_str)
+                    
+                    updated_record = SleepRecord(
+                        id=selected_log.id,
+                        date=edit_date.strftime("%Y-%m-%d"),
+                        bedtime=bedtime_str,
+                        wake_time=wake_time_str,
+                        duration_hours=duration,
+                        quality_rating=edit_quality,
+                        notes=edit_notes,
+                        mood=edit_mood
+                    )
+                    
+                    if update_sleep_record(updated_record):
+                        # Update linked habit record
+                        updated_habit = HabitRecord(
+                            sleep_record_id=selected_log.id,
+                            took_coffee=edit_coffee,
+                            exercised=edit_exercise,
+                            used_screen=edit_screen,
+                        )
+                        update_habit(selected_log.id, updated_habit)
+                        st.session_state[f"edit_log_{selected_log.id}"] = False
+                        st.success("Log updated successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Failed to update log.")
+                except Exception as e:
+                    st.error(f"Error updating log: {e}")
+            
+            if cancel_edit:
+                st.session_state[f"edit_log_{selected_log.id}"] = False
+                st.rerun()
+    
+    # Show delete confirmation if pending
+    if st.session_state.get(f"confirm_delete_log_{selected_log.id}", False):
+        st.warning(f"⚠️ Are you sure you want to delete the log for {selected_log.date}?")
+        col_confirm1, col_confirm2 = st.columns(2)
+        with col_confirm1:
+            if st.button("✓ Confirm Delete", key=f"confirm_yes_log_{selected_log.id}"):
+                try:
+                    delete_sleep_record(selected_log.id)
+                    # Clean up all stale session state keys for sleep logs
+                    stale_keys = [k for k in st.session_state if k.startswith("confirm_delete_log_") or k.startswith("edit_log_")]
+                    for k in stale_keys:
+                        del st.session_state[k]
+                    # Re-fetch so the selectbox updates immediately
+                    recent[:] = get_recent_records(7)
+                    st.success("Log deleted successfully!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error deleting log: {e}")
+        with col_confirm2:
+            if st.button("✗ Cancel", key=f"confirm_no_log_{selected_log.id}"):
+                st.session_state[f"confirm_delete_log_{selected_log.id}"] = False
+                st.rerun()
 
 
 # ============================================================================
@@ -384,10 +525,96 @@ def _page_report():
     saved_reports = get_all_reports()
     if saved_reports:
         st.subheader("Saved Reports")
+        
+        # Create table data
+        table_data = []
         for rpt in saved_reports[:5]:
-            st.write(f"**{rpt.report_date}** (Week {rpt.week_start} to {rpt.week_end}) — "
-                     f"Debt: {rpt.sleep_debt:+.1f}h, Avg Sleep: {rpt.average_sleep_time:.1f}h, "
-                     f"Avg Quality: {rpt.average_quality:.1f}")
+            table_data.append({
+                "Report Date": rpt.report_date,
+                "Week Start": rpt.week_start,
+                "Week End": rpt.week_end,
+                "Sleep Debt (h)": f"{rpt.sleep_debt:+.1f}",
+                "Avg Sleep (h)": f"{rpt.average_sleep_time:.1f}",
+                "Avg Quality": f"{rpt.average_quality:.1f}",
+                "Avg Mood": f"{rpt.average_mood:.1f}" if rpt.average_mood else "-",
+                "ID": rpt.id,
+            })
+        
+        df = pd.DataFrame(table_data)
+        st.table(df)
+        
+        st.divider()
+        st.write("**Actions:**")
+        
+        # Action buttons for each report
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_action = st.radio("Select action:", ["Export", "Delete"], key="report_action")
+            selected_report_idx = st.selectbox("Select report:", 
+                                               range(len(saved_reports[:5])), 
+                                               format_func=lambda i: f"ID {saved_reports[i].id} - {saved_reports[i].report_date} (Week {saved_reports[i].week_start} to {saved_reports[i].week_end})",
+                                               key="report_select")
+        
+        selected_report = saved_reports[selected_report_idx]
+        
+        # Clear delete confirmation state when switching to Export action
+        if selected_action == "Export":
+            st.session_state[f"confirm_delete_{selected_report.id}"] = False
+        
+        with col2:
+            st.write("")
+            st.write("")
+            
+            if selected_action == "Export":
+                if st.button("📥 Export to CSV", key=f"export_action_{selected_report.id}"):
+                    # Export CSV to download
+                    csv_buffer = io.StringIO()
+                    writer = csv.writer(csv_buffer)
+                    writer.writerow(["Field", "Value"])
+                    writer.writerow(["Report Date", selected_report.report_date])
+                    writer.writerow(["Week Start", selected_report.week_start])
+                    writer.writerow(["Week End", selected_report.week_end])
+                    writer.writerow(["Sleep Debt (hrs)", selected_report.sleep_debt])
+                    writer.writerow(["Average Mood", selected_report.average_mood])
+                    writer.writerow(["Average Sleep Time (hrs)", selected_report.average_sleep_time])
+                    writer.writerow(["Average Quality", selected_report.average_quality])
+                    writer.writerow(["Insights", selected_report.insights if selected_report.insights else ""])
+                    
+                    csv_content = csv_buffer.getvalue()
+                    st.download_button(
+                        label="⬇️ Download",
+                        data=csv_content,
+                        file_name=f"report_{selected_report.report_date}.csv",
+                        mime="text/csv",
+                        key=f"download_{selected_report.id}"
+                    )
+            
+            else:  # Delete action
+                if st.button("🗑️ Delete Report", key=f"delete_action_{selected_report.id}"):
+                    st.session_state[f"confirm_delete_{selected_report.id}"] = True
+        
+        # Show confirmation message if pending
+        if st.session_state.get(f"confirm_delete_{selected_report.id}", False):
+            st.warning(f"⚠️ Are you sure you want to delete the report for {selected_report.report_date}?")
+            col_confirm1, col_confirm2 = st.columns(2)
+            with col_confirm1:
+                if st.button("✓ Confirm Delete", key=f"confirm_yes_{selected_report.id}"):
+                    try:
+                        delete_report(selected_report.id)
+                        # Clean up all stale session state keys for reports
+                        stale_keys = [k for k in st.session_state if k.startswith("confirm_delete_")]
+                        for k in stale_keys:
+                            del st.session_state[k]
+                        # Re-fetch so the selectbox updates immediately
+                        saved_reports[:] = get_all_reports()
+                        st.success("Report deleted successfully!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error deleting report: {e}")
+            with col_confirm2:
+                if st.button("✗ Cancel", key=f"confirm_no_{selected_report.id}"):
+                    st.session_state[f"confirm_delete_{selected_report.id}"] = False
+                    st.rerun()
 
 
 # ============================================================================
@@ -410,9 +637,17 @@ def _page_settings():
     auto_launch = settings.get("auto_launch", False)
     new_auto_launch = st.checkbox("Enable auto-launch on startup", value=auto_launch)
 
+    # Past-day logging toggle
+    allow_past_day_logging = settings.get("allow_past_day_logging", False)
+    new_allow_past_day_logging = st.toggle(
+        "Allow logging sleep for past days",
+        value=allow_past_day_logging,
+    )
+
     if st.button("Save Settings", type="primary"):
         settings["target_hours"] = new_target
         settings["auto_launch"] = new_auto_launch
+        settings["allow_past_day_logging"] = new_allow_past_day_logging
         _save_settings(settings)
 
         # Handle auto-launch changes
@@ -439,6 +674,9 @@ def _page_settings():
         conn.commit()
         conn.close()
         settings["consent_given"] = False
+        settings["auto_launch"] = False
+        settings["allow_past_day_logging"] = False
+        settings["target_hours"] = 8
         _save_settings(settings)
         st.success("All data deleted. The app will reset on next load.")
         st.rerun()
