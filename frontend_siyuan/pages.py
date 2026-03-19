@@ -291,6 +291,7 @@ def _page_dashboard():
             "Mood": f"{r.mood}/5" if r.mood else "-",
             "Notes": r.notes if r.notes else "-",
             "ID": r.id,
+
         })
     
     df_logs = pd.DataFrame(table_data)

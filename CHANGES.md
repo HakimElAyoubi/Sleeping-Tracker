@@ -1,4 +1,5 @@
-﻿# Sleep Tracker — Change Log
+
+# Sleep Tracker — Change Log
 > Personal changes made on 2026-03-18.
 
 ## frontend_siyuan/pages.py
