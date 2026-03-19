@@ -10,9 +10,13 @@ Usage:
 
 import streamlit as st
 import json
+<<<<<<< Yibo
 import csv
 import io
 import pandas as pd
+=======
+import os
+>>>>>>> main
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
@@ -21,15 +25,26 @@ from database_hakim import (
     add_sleep_record,
     get_all_records,
     get_recent_records,
+<<<<<<< Yibo
+=======
+    get_record_by_date,
+>>>>>>> main
     get_record_count,
     date_exists,
     insert_habit,
     get_all_habits,
+<<<<<<< Yibo
     insert_report,
     get_all_reports,
     delete_report,
     delete_sleep_record,
     update_sleep_record,
+=======
+    get_habit_by_sleep_record_id,
+    insert_report,
+    get_latest_report,
+    get_all_reports,
+>>>>>>> main
     SleepRecord,
     HabitRecord,
     ReportRecord,
@@ -39,6 +54,7 @@ from analysis_yeraly import (
     calculate_duration,
     calculate_sleep_debt,
     get_streak,
+<<<<<<< Yibo
     generate_weekly_summary,
 )
 
@@ -70,6 +86,41 @@ def _get_target_hours():
 # Page: User Consent
 # ============================================================================
 
+=======
+    analyze_habit_correlations,
+    generate_advice,
+    generate_weekly_summary,
+)
+
+# Path to local settings/consent file
+_SETTINGS_PATH = Path(__file__).parent.parent / "settings.json"
+
+
+def _load_settings():
+    """Load settings from local JSON file."""
+    if _SETTINGS_PATH.exists():
+        with open(_SETTINGS_PATH, "r") as f:
+            return json.load(f)
+    return {}
+
+
+def _save_settings(settings):
+    """Save settings to local JSON file."""
+    with open(_SETTINGS_PATH, "w") as f:
+        json.dump(settings, f, indent=2)
+
+
+def _get_target_hours():
+    """Get the user's target sleep hours from settings."""
+    settings = _load_settings()
+    return settings.get("target_hours", 8.0)
+
+
+# ============================================================================
+# Page: User Consent
+# ============================================================================
+
+>>>>>>> main
 def _page_consent():
     """Show consent screen on first launch."""
     st.header("Welcome to Sleep Tracker")
@@ -287,7 +338,10 @@ def _page_dashboard():
             "Duration": f"{r.duration_hours:.1f} hrs",
             "Quality": f"{r.quality_rating}/5" if r.quality_rating else "-",
             "Mood": f"{r.mood}/5" if r.mood else "-",
+<<<<<<< Yibo
             "ID": r.id,
+=======
+>>>>>>> main
         })
     
     df_logs = pd.DataFrame(table_data)
@@ -413,12 +467,21 @@ def _page_report():
 
     all_records = get_all_records()
     all_habits = get_all_habits()
+<<<<<<< Yibo
 
     summary = generate_weekly_summary(records, all_habits)
     if not summary:
         st.warning("Could not generate summary.")
         return
 
+=======
+
+    summary = generate_weekly_summary(records, all_habits)
+    if not summary:
+        st.warning("Could not generate summary.")
+        return
+
+>>>>>>> main
     # Summary metrics
     st.subheader("Summary")
     col1, col2, col3 = st.columns(3)
@@ -501,6 +564,7 @@ def _page_report():
     saved_reports = get_all_reports()
     if saved_reports:
         st.subheader("Saved Reports")
+<<<<<<< Yibo
         
         # Create table data
         table_data = []
@@ -586,6 +650,12 @@ def _page_report():
                 if st.button("✗ Cancel", key=f"confirm_no_{selected_report.id}"):
                     st.session_state[f"confirm_delete_{selected_report.id}"] = False
                     st.rerun()
+=======
+        for rpt in saved_reports[:5]:
+            st.write(f"**{rpt.report_date}** (Week {rpt.week_start} to {rpt.week_end}) — "
+                     f"Debt: {rpt.sleep_debt:+.1f}h, Avg Sleep: {rpt.average_sleep_time:.1f}h, "
+                     f"Avg Quality: {rpt.average_quality:.1f}")
+>>>>>>> main
 
 
 # ============================================================================
@@ -608,6 +678,7 @@ def _page_settings():
     auto_launch = settings.get("auto_launch", False)
     new_auto_launch = st.checkbox("Enable auto-launch on startup", value=auto_launch)
 
+<<<<<<< Yibo
     # Past-day logging toggle
     allow_past_day_logging = settings.get("allow_past_day_logging", False)
     new_allow_past_day_logging = st.toggle(
@@ -619,6 +690,11 @@ def _page_settings():
         settings["target_hours"] = new_target
         settings["auto_launch"] = new_auto_launch
         settings["allow_past_day_logging"] = new_allow_past_day_logging
+=======
+    if st.button("Save Settings", type="primary"):
+        settings["target_hours"] = new_target
+        settings["auto_launch"] = new_auto_launch
+>>>>>>> main
         _save_settings(settings)
 
         # Handle auto-launch changes
