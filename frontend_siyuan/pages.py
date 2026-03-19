@@ -674,6 +674,9 @@ def _page_settings():
         conn.commit()
         conn.close()
         settings["consent_given"] = False
+        settings["auto_launch"] = False
+        settings["allow_past_day_logging"] = False
+        settings["target_hours"] = 8
         _save_settings(settings)
         st.success("All data deleted. The app will reset on next load.")
         st.rerun()

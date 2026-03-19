@@ -113,3 +113,11 @@
 
 2. **`frontend_siyuan/pages.py` — Re-fetch data after report delete**
    - Added `saved_reports[:] = get_all_reports()` after `delete_report()` so the selectbox renders with the updated list.
+
+### Enhancement: Reset settings to defaults when deleting all data
+- Updated the "Delete all my data" handler to reset all settings in `settings.json` to their default values:
+  - `consent_given` → `false`
+  - `auto_launch` → `false`
+  - `allow_past_day_logging` → `false`
+  - `target_hours` → `8`
+- Previously only `consent_given` was reset, leaving stale user preferences after a full data wipe.
