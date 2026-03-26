@@ -1,9 +1,3 @@
-"""
-Data Models
-============
-Data structures for sleep tracking.
-These can be used by other modules for type hints and data validation.
-"""
 
 from dataclasses import dataclass
 from typing import Optional

@@ -1,65 +1,32 @@
-"""
-Database Queries
-================
-CRUD operations for sleep records, habits, and reports.
-Other modules should use these functions to interact with the database.
-"""
-
 from typing import List, Optional
 from .connection import get_connection
 from .models import SleepRecord, HabitRecord, ReportRecord
 
 
-# ============================================================================
-# SLEEP RECORDS - CREATE
-# ============================================================================
-
 def add_sleep_record(record: SleepRecord) -> int:
-    """
-    Add a new sleep record to the database.
 
-    Args:
-        record: SleepRecord object to insert
-
-    Returns:
-        The ID of the newly inserted record
-    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
-
         cursor.execute("""
-            INSERT INTO sleep_records (date, bedtime, wake_time, duration_hours, quality_rating, notes, mood)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            record.date,
-            record.bedtime,
-            record.wake_time,
-            record.duration_hours,
-            record.quality_rating,
-            record.notes,
-            record.mood,
+            INSERT INTO sleep_records 
+            (date, bedtime, wake_time, duration_hours,
+            quality_rating, notes, mood)
+            VALUES (?, ?, ?, ?, ?, ?, ?)""", 
+            (
+            record.date,record.bedtime, record.wake_time,
+            record.duration_hours,record.quality_rating,
+            record.notes,record.mood,
         ))
-
         record_id = cursor.lastrowid
         conn.commit()
-
         return record_id
     finally:
         conn.close()
 
 
-# ============================================================================
-# SLEEP RECORDS - READ
-# ============================================================================
 
 def get_all_records() -> List[SleepRecord]:
-    """
-    Get all sleep records, ordered by date (newest first).
-
-    Returns:
-        List of SleepRecord objects
-    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -73,15 +40,7 @@ def get_all_records() -> List[SleepRecord]:
 
 
 def get_record_by_date(date: str) -> Optional[SleepRecord]:
-    """
-    Get a sleep record for a specific date.
 
-    Args:
-        date: Date string in YYYY-MM-DD format
-
-    Returns:
-        SleepRecord if found, None otherwise
-    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -94,47 +53,9 @@ def get_record_by_date(date: str) -> Optional[SleepRecord]:
         conn.close()
 
 
-def get_recent_records(limit: int = 7) -> List[SleepRecord]:
-    """
-    Get the most recent sleep records.
-
-    Args:
-        limit: Maximum number of records to return (default: 7)
-
-    Returns:
-        List of SleepRecord objects
-    """
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT * FROM sleep_records
-            ORDER BY date DESC
-            LIMIT ?
-        """, (limit,))
-
-        rows = cursor.fetchall()
-
-        return [SleepRecord.from_row(row) for row in rows]
-    finally:
-        conn.close()
-
-
-# ============================================================================
-# SLEEP RECORDS - UPDATE
-# ============================================================================
 
 def update_sleep_record(record: SleepRecord) -> bool:
-    """
-    Update an existing sleep record.
 
-    Args:
-        record: SleepRecord with updated values (must have id set)
-
-    Returns:
-        True if record was updated, False if not found
-    """
     if record.id is None:
         raise ValueError("Record must have an ID to update")
 
@@ -166,20 +87,12 @@ def update_sleep_record(record: SleepRecord) -> bool:
         conn.close()
 
 
-# ============================================================================
-# SLEEP RECORDS - DELETE
-# ============================================================================
+
 
 def delete_sleep_record(record_id: int) -> bool:
     """
-    Delete a sleep record by ID.
-
-    Args:
-        record_id: The database ID of the record to delete
-
-    Returns:
-        True if record was deleted, False if not found
-    """
+if record was deleted, False if not found
+   """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -196,10 +109,6 @@ def delete_sleep_record(record_id: int) -> bool:
         conn.close()
 
 
-# ============================================================================
-# SLEEP RECORDS - UTILITIES
-# ============================================================================
-
 def get_record_count() -> int:
     """Get total number of sleep records."""
     conn = get_connection()
@@ -213,15 +122,29 @@ def get_record_count() -> int:
     finally:
         conn.close()
 
+def get_recent_records(limit: int = 7) -> List[SleepRecord]:
 
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM sleep_records
+            ORDER BY date DESC
+            LIMIT ?
+        """, (limit,))
+
+        rows = cursor.fetchall()
+
+        return [SleepRecord.from_row(row) for row in rows]
+    finally:
+        conn.close()
+        
 def date_exists(date: str) -> bool:
     """Check if a record exists for the given date."""
     return get_record_by_date(date) is not None
 
 
-# ============================================================================
-# HABITS - CRUD
-# ============================================================================
 
 def insert_habit(record: HabitRecord) -> int:
     """Insert a habit record linked to a sleep record. Returns the new ID."""
@@ -260,15 +183,7 @@ def get_habit_by_sleep_record_id(record_id: int) -> Optional[HabitRecord]:
 
 
 def update_habit(sleep_record_id: int, record: HabitRecord) -> bool:
-    """Update the habit record linked to a sleep record.
 
-    Args:
-        sleep_record_id: The sleep record this habit belongs to.
-        record: HabitRecord with updated values.
-
-    Returns:
-        True if a row was updated, False otherwise.
-    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
@@ -304,9 +219,6 @@ def get_all_habits() -> List[HabitRecord]:
         conn.close()
 
 
-# ============================================================================
-# REPORTS - CRUD
-# ============================================================================
 
 def insert_report(record: ReportRecord) -> int:
     """Insert a weekly report. Returns the new ID."""
@@ -363,15 +275,7 @@ def get_all_reports() -> List[ReportRecord]:
 
 
 def delete_report(report_id: int) -> bool:
-    """
-    Delete a report by ID.
 
-    Args:
-        report_id: The database ID of the report to delete
-
-    Returns:
-        True if report was deleted, False if not found
-    """
     conn = get_connection()
     try:
         cursor = conn.cursor()

@@ -1,9 +1,3 @@
-"""
-Database Connection Handler
-===========================
-Manages SQLite database connection and initialization.
-"""
-
 import sqlite3
 import os
 from pathlib import Path
@@ -13,30 +7,16 @@ DEFAULT_DB_PATH = Path(__file__).parent.parent / "sleep_tracker.db"
 
 
 def get_connection(db_path: str = None) -> sqlite3.Connection:
-    """
-    Get a database connection.
 
-    Args:
-        db_path: Optional custom database path. Uses default if not provided.
-
-    Returns:
-        sqlite3.Connection object
-    """
     path = db_path or DEFAULT_DB_PATH
     conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row  # Enable column access by name
-    conn.execute("PRAGMA foreign_keys = ON")  # Enforce FK constraints
+    conn.row_factory = sqlite3.Row  
+    conn.execute("PRAGMA foreign_keys = ON")  
     return conn
 
 
 def init_database(db_path: str = None) -> None:
-    """
-    Initialize the database with required tables.
-    Call this once at application startup.
 
-    Args:
-        db_path: Optional custom database path.
-    """
     conn = get_connection(db_path)
     cursor = conn.cursor()
 
@@ -56,13 +36,10 @@ def init_database(db_path: str = None) -> None:
         )
     """)
 
-    # Add mood column to existing tables that don't have it yet
     try:
         cursor.execute("ALTER TABLE sleep_records ADD COLUMN mood INTEGER CHECK(mood >= 1 AND mood <= 5)")
     except sqlite3.OperationalError:
-        pass  # Column already exists
-
-    # Create index for faster date lookups
+        pass  
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_sleep_records_date
         ON sleep_records(date)

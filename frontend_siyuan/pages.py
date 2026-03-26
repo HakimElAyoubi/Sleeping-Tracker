@@ -231,15 +231,15 @@ def _page_dashboard():
     col4.metric("Avg Quality (7d)", f"{avg_qual:.1f} / 5")
     col5.metric("Avg Mood (7d)", f"{avg_mood:.1f} / 5")
 
-    # Streak reward messages with emoji
+    # Streak reward messages
     if streak >= 30:
-        st.success("🔥 30-day streak! You're a sleep champion! 🏆")
+        st.success("30-day streak! You're a sleep champion!")
     elif streak >= 14:
-        st.success("🔥 2-week streak! Incredible consistency!")
+        st.success("2-week streak! Incredible consistency!")
     elif streak >= 7:
-        st.success("🔥 7-day streak! Great week of tracking!")
+        st.success("7-day streak! Great week of tracking!")
     elif streak >= 3:
-        st.info("🔥 3-day streak! Keep it going!")
+        st.info("3-day streak! Keep it going!")
 
     # Sleep debt indicator
     st.subheader("Sleep Debt Indicator")
@@ -295,7 +295,7 @@ def _page_dashboard():
         })
     
     df_logs = pd.DataFrame(table_data)
-    st.table(df_logs)
+    st.dataframe(df_logs, hide_index=True, use_container_width=True)
     
     st.divider()
     st.write("**Actions:**")
@@ -324,10 +324,10 @@ def _page_dashboard():
         st.write("")
         
         if selected_action == "Edit":
-            if st.button("✏️ Edit Log", key=f"edit_action_{selected_log.id}"):
+            if st.button("Edit Log", key=f"edit_action_{selected_log.id}"):
                 st.session_state[f"edit_log_{selected_log.id}"] = True
         else:  # Delete action
-            if st.button("🗑️ Delete Log", key=f"delete_log_action_{selected_log.id}"):
+            if st.button("Delete Log", key=f"delete_log_action_{selected_log.id}"):
                 st.session_state[f"confirm_delete_log_{selected_log.id}"] = True
     
     # Show edit form if pending
@@ -357,9 +357,9 @@ def _page_dashboard():
             
             col_form_btn1, col_form_btn2 = st.columns(2)
             with col_form_btn1:
-                submit_edit = st.form_submit_button("✓ Save Changes")
+                submit_edit = st.form_submit_button("Save Changes")
             with col_form_btn2:
-                cancel_edit = st.form_submit_button("✗ Cancel")
+                cancel_edit = st.form_submit_button("Cancel")
             
             if submit_edit:
                 try:
@@ -401,10 +401,10 @@ def _page_dashboard():
     
     # Show delete confirmation if pending
     if st.session_state.get(f"confirm_delete_log_{selected_log.id}", False):
-        st.warning(f"⚠️ Are you sure you want to delete the log for {selected_log.date}?")
+        st.warning(f"Are you sure you want to delete the log for {selected_log.date}?")
         col_confirm1, col_confirm2 = st.columns(2)
         with col_confirm1:
-            if st.button("✓ Confirm Delete", key=f"confirm_yes_log_{selected_log.id}"):
+            if st.button("Confirm Delete", key=f"confirm_yes_log_{selected_log.id}"):
                 try:
                     delete_sleep_record(selected_log.id)
                     # Clean up all stale session state keys for sleep logs
@@ -418,7 +418,7 @@ def _page_dashboard():
                 except Exception as e:
                     st.error(f"Error deleting log: {e}")
         with col_confirm2:
-            if st.button("✗ Cancel", key=f"confirm_no_log_{selected_log.id}"):
+            if st.button("Cancel", key=f"confirm_no_log_{selected_log.id}"):
                 st.session_state[f"confirm_delete_log_{selected_log.id}"] = False
                 st.rerun()
 
@@ -566,7 +566,7 @@ def _page_report():
             st.write("")
             
             if selected_action == "Export":
-                if st.button("📥 Export to CSV", key=f"export_action_{selected_report.id}"):
+                if st.button("Export to CSV", key=f"export_action_{selected_report.id}"):
                     # Export CSV to download
                     csv_buffer = io.StringIO()
                     writer = csv.writer(csv_buffer)
@@ -582,23 +582,23 @@ def _page_report():
                     
                     csv_content = csv_buffer.getvalue()
                     st.download_button(
-                        label="⬇️ Download",
+                        label="Download",
                         data=csv_content,
                         file_name=f"report_{selected_report.report_date}.csv",
                         mime="text/csv",
                         key=f"download_{selected_report.id}"
                     )
-            
+
             else:  # Delete action
-                if st.button("🗑️ Delete Report", key=f"delete_action_{selected_report.id}"):
+                if st.button("Delete Report", key=f"delete_action_{selected_report.id}"):
                     st.session_state[f"confirm_delete_{selected_report.id}"] = True
         
         # Show confirmation message if pending
         if st.session_state.get(f"confirm_delete_{selected_report.id}", False):
-            st.warning(f"⚠️ Are you sure you want to delete the report for {selected_report.report_date}?")
+            st.warning(f"Are you sure you want to delete the report for {selected_report.report_date}?")
             col_confirm1, col_confirm2 = st.columns(2)
             with col_confirm1:
-                if st.button("✓ Confirm Delete", key=f"confirm_yes_{selected_report.id}"):
+                if st.button("Confirm Delete", key=f"confirm_yes_{selected_report.id}"):
                     try:
                         delete_report(selected_report.id)
                         # Clean up all stale session state keys for reports
@@ -612,7 +612,7 @@ def _page_report():
                     except Exception as e:
                         st.error(f"Error deleting report: {e}")
             with col_confirm2:
-                if st.button("✗ Cancel", key=f"confirm_no_{selected_report.id}"):
+                if st.button("Cancel", key=f"confirm_no_{selected_report.id}"):
                     st.session_state[f"confirm_delete_{selected_report.id}"] = False
                     st.rerun()
 
