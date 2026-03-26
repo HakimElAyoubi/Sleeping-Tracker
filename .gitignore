@@ -32,7 +32,6 @@ ENV/
 *.swp
 *.swo
 *~
-.claude/
 
 # Database files (keep schema, ignore data)
 *.db
